@@ -1,0 +1,17 @@
+{
+  "name": "Foliovera — Your career, always current.",
+  "short_name": "Foliovera",
+  "description": "An AI-powered career intelligence platform that transforms verified achievements into living professional profiles and tailored resumes.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F6F5F1",
+  "theme_color": "#365C4C",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

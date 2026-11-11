@@ -1,0 +1,82 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    --bg-canvas: #F6F5F1;
+    --bg-surface: #FDFCFA;
+    --bg-sand: #E9E5DD;
+    --bg-sage: #DDE6DC;
+    --bg-sidebar: #181D1B;
+    --text-primary: #242824;
+    --text-secondary: #545B54;
+    --text-muted: #767E76;
+    --accent-forest: #365C4C;
+    --accent-forest-hover: #2B4B3E;
+    --accent-bronze: #BE925E;
+    --border-subtle: #E2DFD7;
+
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  .dark {
+    --bg-canvas: #0E1110;
+    --bg-surface: #1A1F1D;
+    --bg-sand: #222926;
+    --bg-sage: #24332C;
+    --bg-sidebar: #090B0A;
+    --text-primary: #F1F3F1;
+    --text-secondary: #B4BDB7;
+    --text-muted: #7C8780;
+    --accent-forest: #3E6B58;
+    --accent-forest-hover: #4C7F69;
+    --accent-bronze: #BE925E;
+    --border-subtle: #262E2B;
+  }
+
+  body {
+    background-color: var(--bg-canvas);
+    color: var(--text-primary);
+    @apply antialiased transition-colors duration-200;
+  }
+
+  h1, h2, .font-editorial {
+    font-family: 'Playfair Display', Georgia, Cambria, 'Times New Roman', serif;
+  }
+
+  code, kbd, samp, pre, .font-mono {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only-resume {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}

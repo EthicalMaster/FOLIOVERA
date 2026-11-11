@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" rx="16" fill="#181D1B"/>
+  <rect x="3" y="3" width="58" height="58" rx="13" stroke="#365C4C" stroke-width="1.5" stroke-opacity="0.7"/>
+  <!-- Architectural Folio Spine & Leaf -->
+  <path d="M20 16H44V23H27V30H40V37H27V48H20V16Z" fill="#F6F5F1"/>
+  <!-- Bronze Verification Corner Accent -->
+  <path d="M37 41L41.5 45.5L49 36.5" stroke="#BE925E" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
