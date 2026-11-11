@@ -11,14 +11,14 @@
  * - Flags uncertain contribution ownership (e.g., forked repos or 0 author-matched commits) with a clarification prompt.
  */
 
-import {
+import type {
   CareerClaim,
   EvidenceSource,
   OwnershipStatus
-} from '../../shared/types/career-profile';
-import { DiscoveredRepoBundle } from './github-service';
-import { UntrustedDataGuard } from '../security/untrusted-data-guard';
-import { SchemaValidator } from '../storage/schema-validator';
+} from '../../shared/types/career-profile.ts';
+import type { DiscoveredRepoBundle } from './github-service.ts';
+import { UntrustedDataGuard } from '../security/untrusted-data-guard.ts';
+import { SchemaValidator } from '../storage/schema-validator.ts';
 
 export interface ExtractionBatchResult {
   evidenceRecords: EvidenceSource[];

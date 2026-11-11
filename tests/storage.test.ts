@@ -8,8 +8,8 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { InMemoryStorageAdapter } from '../server/storage/memory-storage';
-import { SAMPLE_CAREER_PROFILE } from '../server/storage/sample-data';
+import { InMemoryStorageAdapter } from '../server/storage/memory-storage.ts';
+import { SAMPLE_CAREER_PROFILE } from '../server/storage/sample-data.ts';
 
 describe('StorageAdapter Contract & In-Memory Implementation', () => {
   test('initializes with sample career profile', async () => {

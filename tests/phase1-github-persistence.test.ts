@@ -19,10 +19,10 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { PersistentSqliteStorageAdapter } from '../server/storage/persistent-storage';
-import { GitHubIntegrationService, GitHubApiError } from '../server/services/github-service';
-import { GitHubSyncOrchestrator } from '../server/services/github-sync-orchestrator';
-import { isClaimApproved, resolveLifecycleState } from '../shared/types/career-profile';
+import { PersistentSqliteStorageAdapter } from '../server/storage/persistent-storage.ts';
+import { GitHubIntegrationService, GitHubApiError } from '../server/services/github-service.ts';
+import { GitHubSyncOrchestrator } from '../server/services/github-sync-orchestrator.ts';
+import { isClaimApproved, resolveLifecycleState } from '../shared/types/career-profile.ts';
 
 function createTempSqlitePath(prefix: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), `foliovera-${prefix}-`));
@@ -378,5 +378,10 @@ describe('Phase 1 — GitHub Intelligence & Persistent Evidence System', () => {
     assert.ok(!redacted.includes('ghp_SuperSecretTokenValue1234567890ABCD'));
     assert.ok(!redacted.includes('github_pat_9876543210abcdef'));
     assert.ok(redacted.includes('[REDACTED'));
+  });
+
+  test('6. Production Node.js ESM module resolution of server/api/router.ts succeeds without ERR_MODULE_NOT_FOUND', async () => {
+    const routerModule = await import('../server/api/router.ts');
+    assert.ok(routerModule.apiRouter, 'apiRouter must be exported and resolvable under native Node ESM');
   });
 });

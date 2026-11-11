@@ -10,12 +10,12 @@
  */
 
 import crypto from 'crypto';
-import {
+import type {
   CareerClaim,
   EvidenceSource,
   VerifiedCareerProfile,
   VerificationStatus
-} from '../../shared/types/career-profile';
+} from '../../shared/types/career-profile.ts';
 
 const VALID_STATUSES: VerificationStatus[] = [
   'verified_source',

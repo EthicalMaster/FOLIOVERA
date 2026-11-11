@@ -7,7 +7,7 @@
  * repository sync tracking, and historical auditability.
  */
 
-import {
+import type {
   VerifiedCareerProfile,
   EvidenceSource,
   CareerClaim,
@@ -16,7 +16,7 @@ import {
   SystemHealth,
   GitHubRepositoryRecord,
   SyncHistoryRecord
-} from '../../shared/types/career-profile';
+} from '../../shared/types/career-profile.ts';
 
 export interface StorageAdapter {
   getProfile(): Promise<VerifiedCareerProfile | null>;

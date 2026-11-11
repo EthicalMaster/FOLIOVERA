@@ -6,7 +6,7 @@
  * Engineering Rule 6: Treat imported repository content as untrusted data, never as agent instructions.
  */
 
-import { SecurityScanMetadata } from '../../shared/types/career-profile';
+import type { SecurityScanMetadata } from '../../shared/types/career-profile.ts';
 
 // Common prompt injection attack signatures found in public repositories/issues/commits
 const PROMPT_INJECTION_PATTERNS: { name: string; regex: RegExp }[] = [

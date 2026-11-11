@@ -7,14 +7,14 @@
  * with deduplication, sync history tracking, and rate-limit resilience.
  */
 
-import { StorageAdapter } from '../storage/storage.interface';
+import type { StorageAdapter } from '../storage/storage.interface.ts';
 import {
   GitHubIntegrationService,
   GitHubApiError,
-  FetchFunction
-} from './github-service';
-import { CareerEvidenceExtractor } from './evidence-extractor';
-import { SyncHistoryRecord } from '../../shared/types/career-profile';
+  type FetchFunction
+} from './github-service.ts';
+import { CareerEvidenceExtractor } from './evidence-extractor.ts';
+import type { SyncHistoryRecord } from '../../shared/types/career-profile.ts';
 
 export interface SyncExecutionResult {
   syncRecord: SyncHistoryRecord;

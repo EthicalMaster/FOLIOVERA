@@ -8,7 +8,7 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultStorage } from '../server/storage/memory-storage';
+import { defaultStorage } from '../server/storage/memory-storage.ts';
 
 describe('System Health & Profile Consistency Contract', () => {
   test('health check returns 100% verifiable status flags', async () => {

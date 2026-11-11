@@ -85,6 +85,10 @@ npm run build
 ## Storage & Recovery Documentation
 
 - **Local Development & Default Persistent Database**: `./data/living-resume.sqlite` (override via `SQLITE_DB_PATH`).
+- **Cloud Run Deployment & Storage Durability**:
+  - Production startup executes `node server.ts` using Node.js 22 native ESM + TypeScript strip-types with explicit `.ts` relative specifiers and `import type` declarations.
+  - On Google Cloud Run, the container root filesystem (`./data/living-resume.sqlite`) persists across requests within an active container instance, but is **ephemeral across container instance replacements or scale-to-zero events**.
+  - For durable multi-instance production persistence on Cloud Run, either mount a persistent volume (e.g., Cloud Storage FUSE / Filestore) and point `SQLITE_DB_PATH` to the mounted directory, or implement a managed Cloud SQL / PostgreSQL `StorageAdapter`. Foliovera never silently falls back to volatile `:memory:` storage if the configured path is unwritable.
 - **Schema Migrations**: Tracked in the `schema_migrations` table (`version = 1`).
 - **Backup & Recovery**:
   - **UI Export**: Navigate to **Settings → Export / Backup Career Vault** to download `foliovera-verified-backup-YYYY-MM-DD.json`.

@@ -8,7 +8,7 @@
 
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { UntrustedDataGuard } from '../server/security/untrusted-data-guard';
+import { UntrustedDataGuard } from '../server/security/untrusted-data-guard.ts';
 
 describe('UntrustedDataGuard Prompt Injection Defense', () => {
   test('neutralizes instruction override attacks in repository text', () => {

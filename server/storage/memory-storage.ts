@@ -7,21 +7,21 @@
  */
 
 import {
-  VerifiedCareerProfile,
-  EvidenceSource,
-  CareerClaim,
-  VerificationStatus,
-  AuditLogEntry,
-  SystemHealth,
-  GitHubRepositoryRecord,
-  SyncHistoryRecord,
   resolveLifecycleState,
-  isClaimApproved
-} from '../../shared/types/career-profile';
-import { StorageAdapter } from './storage.interface';
-import { SAMPLE_CAREER_PROFILE } from './sample-data';
-import { SchemaValidator } from './schema-validator';
-import { PersistentSqliteStorageAdapter } from './persistent-storage';
+  isClaimApproved,
+  type VerifiedCareerProfile,
+  type EvidenceSource,
+  type CareerClaim,
+  type VerificationStatus,
+  type AuditLogEntry,
+  type SystemHealth,
+  type GitHubRepositoryRecord,
+  type SyncHistoryRecord
+} from '../../shared/types/career-profile.ts';
+import type { StorageAdapter } from './storage.interface.ts';
+import { SAMPLE_CAREER_PROFILE } from './sample-data.ts';
+import { SchemaValidator } from './schema-validator.ts';
+import { PersistentSqliteStorageAdapter } from './persistent-storage.ts';
 
 export class InMemoryStorageAdapter implements StorageAdapter {
   private profile: VerifiedCareerProfile;

@@ -12,20 +12,20 @@ import fs from 'fs';
 import path from 'path';
 import { DatabaseSync } from 'node:sqlite';
 import {
-  VerifiedCareerProfile,
-  EvidenceSource,
-  CareerClaim,
-  VerificationStatus,
-  AuditLogEntry,
-  SystemHealth,
-  GitHubRepositoryRecord,
-  SyncHistoryRecord,
   resolveLifecycleState,
-  isClaimApproved
-} from '../../shared/types/career-profile';
-import { StorageAdapter } from './storage.interface';
-import { SAMPLE_CAREER_PROFILE } from './sample-data';
-import { SchemaValidator } from './schema-validator';
+  isClaimApproved,
+  type VerifiedCareerProfile,
+  type EvidenceSource,
+  type CareerClaim,
+  type VerificationStatus,
+  type AuditLogEntry,
+  type SystemHealth,
+  type GitHubRepositoryRecord,
+  type SyncHistoryRecord
+} from '../../shared/types/career-profile.ts';
+import type { StorageAdapter } from './storage.interface.ts';
+import { SAMPLE_CAREER_PROFILE } from './sample-data.ts';
+import { SchemaValidator } from './schema-validator.ts';
 
 export interface PersistentStorageOptions {
   dbPath?: string;
@@ -54,10 +54,26 @@ export class PersistentSqliteStorageAdapter implements StorageAdapter {
       (process.env.NODE_ENV === 'production' ? 'production_persistent' : 'development_persistent');
     this.startTime = Date.now();
 
-    // Ensure directory exists; never silently fall back to in-memory
+    // Ensure directory exists and is writable; never silently fall back to volatile in-memory storage
     const dir = path.dirname(this.dbPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
+    try {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.accessSync(dir, fs.constants.W_OK);
+    } catch (fsErr) {
+      throw new Error(
+        `[Foliovera Storage Error] Cannot write to SQLite database directory "${dir}". ` +
+          `Ensure the filesystem path is writable or set SQLITE_DB_PATH to a mounted persistent volume. ` +
+          `Underlying error: ${fsErr instanceof Error ? fsErr.message : String(fsErr)}`
+      );
+    }
+
+    if (process.env.K_SERVICE && !process.env.SQLITE_DB_PATH && !process.env.STORAGE_DB_PATH) {
+      console.warn(
+        `[Foliovera Cloud Run Storage Notice] Using container filesystem SQLite at "${this.dbPath}". ` +
+          `Cloud Run container filesystems do not provide durable persistence across container instance replacements unless SQLITE_DB_PATH points to a mounted Cloud Run volume or an external managed database is configured.`
+      );
     }
 
     this.db = new DatabaseSync(this.dbPath);

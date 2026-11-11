@@ -8,21 +8,21 @@
  * Ownership Clarification, and Approved-Only Resume Generation.
  */
 
-import { Router, Request, Response } from 'express';
+import { Router, type Request, type Response } from 'express';
 import { GoogleGenAI, Type } from '@google/genai';
-import { defaultStorage } from '../storage/memory-storage';
-import { UntrustedDataGuard } from '../security/untrusted-data-guard';
-import { GitHubSyncOrchestrator } from '../services/github-sync-orchestrator';
-import { GitHubApiError, GitHubIntegrationService } from '../services/github-service';
+import { defaultStorage } from '../storage/memory-storage.ts';
+import { UntrustedDataGuard } from '../security/untrusted-data-guard.ts';
+import { GitHubSyncOrchestrator } from '../services/github-sync-orchestrator.ts';
+import { GitHubApiError, GitHubIntegrationService } from '../services/github-service.ts';
 import {
-  CareerClaim,
-  EvidenceSource,
-  EvidenceSourceType,
-  ResumeStyle,
-  ResumeVersion,
-  VerificationStatus,
-  isClaimApproved
-} from '../../shared/types/career-profile';
+  isClaimApproved,
+  type CareerClaim,
+  type EvidenceSource,
+  type EvidenceSourceType,
+  type ResumeStyle,
+  type ResumeVersion,
+  type VerificationStatus
+} from '../../shared/types/career-profile.ts';
 
 export const apiRouter = Router();
 

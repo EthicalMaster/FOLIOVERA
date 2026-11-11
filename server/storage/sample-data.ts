@@ -7,7 +7,7 @@
  * No real personal data or external credentials used.
  */
 
-import { VerifiedCareerProfile } from '../../shared/types/career-profile';
+import type { VerifiedCareerProfile } from '../../shared/types/career-profile.ts';
 
 export const SAMPLE_CAREER_PROFILE: VerifiedCareerProfile = {
   id: 'profile-sample-001',

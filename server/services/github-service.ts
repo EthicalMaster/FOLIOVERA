@@ -12,11 +12,11 @@
  * - Handles pagination, rate limits, network errors, and empty repositories.
  */
 
-import {
+import type {
   GitHubRepositoryRecord,
   OwnershipStatus
-} from '../../shared/types/career-profile';
-import { UntrustedDataGuard } from '../security/untrusted-data-guard';
+} from '../../shared/types/career-profile.ts';
+import { UntrustedDataGuard } from '../security/untrusted-data-guard.ts';
 
 export type FetchFunction = (url: string, init?: RequestInit) => Promise<Response>;
 
