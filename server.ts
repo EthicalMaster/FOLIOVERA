@@ -2,7 +2,7 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  * 
- * Foliovera — Server Entry Point
+ * Foliovera — Server Entry Point (Phase 1.5)
  * Full-stack Express server compatible with both development (tsx + Vite middleware)
  * and production Cloud Run deployment (node server.ts + static dist serving).
  */
@@ -13,6 +13,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { apiRouter } from './server/api/router.ts';
+import { redactSecrets } from './server/security/api-protection.ts';
 
 dotenv.config();
 
@@ -23,8 +24,6 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const distPath = path.resolve(__dirname, 'dist');
 const distIndexHtml = path.resolve(distPath, 'index.html');
 
-// Use production static serving when NODE_ENV=production, or when invoked via `node server.ts` / `npm start`
-// with a built `dist/index.html` artifact present. Use Vite middleware during `npm run dev`.
 const isDevLifecycle =
   process.env.NODE_ENV === 'development' || process.env.npm_lifecycle_event === 'dev';
 const useProductionStatic =
@@ -33,13 +32,27 @@ const useProductionStatic =
 async function startServer() {
   const app = express();
 
-  // Middleware
-  app.use(express.json({ limit: '1mb' }));
+  // Enforce strict payload limit
+  app.use(express.json({ limit: '512kb' }));
 
-  // Basic security headers
-  app.use((_req: Request, res: Response, next: NextFunction) => {
+  // Hardened security & CORS headers
+  app.use((req: Request, res: Response, next: NextFunction) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin-allow-popups');
+
+    const allowedOrigin = process.env.APP_URL;
+    const reqOrigin = req.headers.origin;
+    if (reqOrigin && allowedOrigin && reqOrigin === allowedOrigin) {
+      res.setHeader('Access-Control-Allow-Origin', reqOrigin);
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
+    }
+
+    if (req.method === 'OPTIONS') {
+      return res.status(204).end();
+    }
     next();
   });
 
@@ -61,15 +74,16 @@ async function startServer() {
     app.use(vite.middlewares);
   }
 
-  // Global error handler
+  // Global error handler with automatic secret redaction
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
-    const errorMessage = err instanceof Error ? err.message : 'Internal Server Error';
-    console.error('[Server Error]:', err);
+    const rawMessage = err instanceof Error ? err.message : 'Internal Server Error';
+    const safeMessage = redactSecrets(rawMessage);
+    console.error('[Server Error]:', safeMessage);
     res.status(500).json({
       success: false,
       error: {
         code: 'INTERNAL_SERVER_ERROR',
-        message: errorMessage
+        message: safeMessage
       }
     });
   });
@@ -92,6 +106,6 @@ async function startServer() {
 }
 
 startServer().catch((err) => {
-  console.error('[Startup Error]:', err);
+  console.error('[Startup Error]:', redactSecrets(err instanceof Error ? err.message : String(err)));
   process.exit(1);
 });

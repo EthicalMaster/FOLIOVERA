@@ -24,7 +24,10 @@ import {
   Menu,
   X,
   ArrowRight,
-  Server
+  Server,
+  LogOut,
+  Eye,
+  Lock
 } from 'lucide-react';
 import {
   SystemHealth,
@@ -32,6 +35,7 @@ import {
   resolveLifecycleState
 } from '../../shared/types/career-profile';
 import { EditorialAvatar, FolioveraBrandMark } from './common/EditorialVisuals';
+import type { User } from '../lib/firebase';
 
 export type ActiveTab =
   | 'dashboard'
@@ -52,6 +56,10 @@ interface LayoutProps {
   isDark: boolean;
   onToggleDark: () => void;
   onRefreshHealth: () => void;
+  authUser?: User | null;
+  isDemoMode?: boolean;
+  onSignOut?: () => void;
+  onExitDemoMode?: () => void;
   children: React.ReactNode;
 }
 
@@ -63,6 +71,10 @@ export const Layout: React.FC<LayoutProps> = ({
   isDark,
   onToggleDark,
   onRefreshHealth,
+  authUser,
+  isDemoMode = false,
+  onSignOut,
+  onExitDemoMode,
   children
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -206,10 +218,20 @@ export const Layout: React.FC<LayoutProps> = ({
         >
           <span className="flex items-center gap-1.5">
             <Server className="w-3 h-3 text-[#68A289]" />
-            <span>{systemHealth?.storageDriver || 'SQLite'}</span>
+            <span>
+              {isDemoMode
+                ? 'Demo Sandbox'
+                : systemHealth?.storageDriver === 'firestore'
+                ? 'Cloud Firestore'
+                : systemHealth?.storageDriver || 'SQLite'}
+            </span>
           </span>
           <span className="tabular-nums text-[#DDE6DC]">
-            {systemHealth?.status === 'healthy' ? 'Persistent · OK' : 'Connecting...'}
+            {isDemoMode
+              ? 'Read-Only Sample'
+              : systemHealth?.status === 'healthy'
+              ? 'Durable · OK'
+              : 'Connecting...'}
           </span>
         </button>
 
@@ -224,15 +246,46 @@ export const Layout: React.FC<LayoutProps> = ({
             <EditorialAvatar size="sm" />
             <div className="min-w-0">
               <div className="text-xs font-semibold text-[#F6F5F1] truncate">
-                {profile?.candidateName || 'Alex Morgan'}
+                {profile?.candidateName || authUser?.displayName || 'Alex Morgan'}
               </div>
               <div className="text-[11px] text-[#8C9690] truncate">
-                {profile?.email || 'alex.morgan@systems.io'}
+                {authUser?.email || profile?.email || 'alex.morgan@systems.io'}
               </div>
             </div>
           </div>
           <ArrowRight className="w-3.5 h-3.5 text-[#8C9690] group-hover:text-[#F6F5F1] group-hover:translate-x-0.5 transition-all shrink-0" />
         </button>
+
+        {authUser && onSignOut && (
+          <button
+            type="button"
+            onClick={onSignOut}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[#222825]/60 hover:bg-[#2E2222] text-[11px] font-medium text-[#B4BDB7] hover:text-red-200 transition-colors cursor-pointer"
+          >
+            <span className="flex items-center gap-1.5 truncate">
+              <Lock className="w-3 h-3 text-[#68A289]" />
+              <span className="truncate">Owner Session Active</span>
+            </span>
+            <span className="inline-flex items-center gap-1 text-[#DDE6DC] shrink-0">
+              <LogOut className="w-3 h-3" />
+              <span>Sign Out</span>
+            </span>
+          </button>
+        )}
+
+        {isDemoMode && onExitDemoMode && (
+          <button
+            type="button"
+            onClick={onExitDemoMode}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-[#BE925E]/20 hover:bg-[#BE925E]/30 border border-[#BE925E]/40 text-[11px] font-medium text-[#F6F5F1] transition-colors cursor-pointer"
+          >
+            <span className="flex items-center gap-1.5">
+              <Eye className="w-3 h-3 text-[#BE925E]" />
+              <span>Demo Sandbox</span>
+            </span>
+            <span className="underline">Sign In as Owner</span>
+          </button>
+        )}
       </div>
     </div>
   );
@@ -271,6 +324,31 @@ export const Layout: React.FC<LayoutProps> = ({
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Sample / Demo Sandbox Isolation Banner */}
+        {(isDemoMode || profile?.isSampleData) && (
+          <div className="no-print bg-[#242824] text-[#F6F5F1] border-b border-[#365C4C]/40 px-4 sm:px-8 py-2.5 text-xs flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded bg-[#BE925E] text-[#181D1B] font-semibold uppercase tracking-wider text-[10px]">
+                Sample Data Isolation Active
+              </span>
+              <span className="text-[#DDE6DC]">
+                {isDemoMode
+                  ? 'Viewing isolated read-only demo profile (Alex Morgan). Changes are disabled and never enter private Cloud Firestore storage.'
+                  : 'This workspace currently contains sample demonstration data.'}
+              </span>
+            </div>
+            {isDemoMode && onExitDemoMode && (
+              <button
+                type="button"
+                onClick={onExitDemoMode}
+                className="px-3 py-1 rounded-lg bg-[#365C4C] hover:bg-[#2B4B3E] text-white font-medium transition-colors cursor-pointer"
+              >
+                Sign in with Google for Personal Vault →
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Top Contextual Bar */}
         <header className="no-print sticky top-0 z-30 bg-[#F6F5F1]/90 dark:bg-[#0E1110]/90 backdrop-blur-md border-b border-[#E2DFD7] dark:border-[#222926]">
           <div className="max-w-6xl mx-auto px-4 sm:px-8 py-4 flex items-center justify-between gap-4">

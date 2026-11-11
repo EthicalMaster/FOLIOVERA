@@ -9,6 +9,87 @@
 
 import type { VerifiedCareerProfile } from '../../shared/types/career-profile.ts';
 
+/**
+ * Creates a genuinely empty, verified personal profile for a newly authenticated owner.
+ * Strictly isolated from SAMPLE_CAREER_PROFILE (isSampleData = false, 0 sample claims/evidence).
+ */
+export function createEmptyOwnerProfile(
+  ownerUid: string,
+  ownerEmail?: string,
+  ownerDisplayName?: string
+): VerifiedCareerProfile {
+  const safeUid = ownerUid.replace(/[^a-zA-Z0-9_-]/g, '_');
+  const now = new Date().toISOString();
+  const displayName =
+    ownerDisplayName && ownerDisplayName.trim()
+      ? ownerDisplayName.trim()
+      : ownerEmail
+      ? ownerEmail.split('@')[0]
+      : 'Verified Candidate';
+
+  return {
+    id: `profile-${safeUid}`,
+    ownerUid,
+    candidateName: displayName,
+    email: ownerEmail || '',
+    location: '',
+    headline: 'Software & Systems Engineer',
+    summary:
+      'Personal Foliovera career workspace. Connect your GitHub account or ingest verified evidence to build your living profile.',
+    isSampleData: false,
+    version: 1,
+    lastUpdated: now,
+    evidenceVault: [],
+    claims: [],
+    skills: [],
+    experiences: [],
+    projects: [],
+    education: [],
+    repositories: [],
+    syncHistory: [],
+    resumeVersions: [],
+    settings: {
+      autoSyncEnabled: true,
+      requireHumanReviewForProfileUpdates: true,
+      strictPromptInjectionQuarantine: true,
+      defaultTargetRole: 'Senior Software Engineer',
+      defaultResumeStyle: 'ats_professional',
+      includeEvidenceFootnotes: true,
+      reducedMotion: false,
+      connectedAccounts: [
+        {
+          id: 'conn-gh',
+          provider: 'github',
+          label: 'GitHub API (Read-Only)',
+          handle: 'Not connected',
+          connected: false,
+          lastSync: 'Never',
+          mode: 'Public / Authenticated REST API'
+        },
+        {
+          id: 'conn-doc',
+          provider: 'document_vault',
+          label: 'Cryptographic Credential Vault',
+          handle: 'Ready',
+          connected: true,
+          lastSync: 'Active',
+          mode: 'UntrustedDataGuard Enforced'
+        }
+      ]
+    },
+    auditTrail: [
+      {
+        id: `audit-init-${Date.now()}`,
+        timestamp: now,
+        actor: 'system',
+        action: 'profile_updated',
+        targetId: `profile-${safeUid}`,
+        details: 'Initialized clean personal career profile for authenticated owner (zero sample records).'
+      }
+    ]
+  };
+}
+
 export const SAMPLE_CAREER_PROFILE: VerifiedCareerProfile = {
   id: 'profile-sample-001',
   candidateName: 'Alex Morgan',

@@ -26,6 +26,7 @@ import {
   resolveLifecycleState
 } from '../../shared/types/career-profile';
 import { ActiveTab } from './Layout';
+import { apiFetch } from '../lib/api-client';
 
 interface ReviewQueueViewProps {
   profile: VerifiedCareerProfile;
@@ -76,7 +77,7 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({
     setProcessing(true);
     try {
       const clarificationResponse = clarificationDrafts[claim.id]?.trim();
-      const res = await fetch(`/api/claims/${claim.id}/verify`, {
+      const res = await apiFetch(`/api/claims/${claim.id}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -118,7 +119,7 @@ export const ReviewQueueView: React.FC<ReviewQueueViewProps> = ({
     if (targetIds.length === 0) return;
     setProcessing(true);
     try {
-      const res = await fetch('/api/claims/batch-verify', {
+      const res = await apiFetch('/api/claims/batch-verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

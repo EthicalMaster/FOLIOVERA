@@ -1,0 +1,260 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Pillar 1: Global Default-Deny Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Core Primitives
+    function isSignedIn() {
+      return request.auth != null && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function parentProfileExists(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId));
+    }
+
+    // Blueprint Validators
+    function isValidCareerProfile(data, userId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'candidateName', 'headline', 'summary', 'isSampleData', 'version', 'lastUpdated'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'candidateName', 'email', 'location', 'headline', 'summary',
+          'skills', 'experiences', 'projects', 'education', 'resumeVersions', 'settings',
+          'isSampleData', 'version', 'lastUpdated'
+        ]) &&
+        isValidId(data.id) &&
+        data.ownerUid is string && data.ownerUid.size() <= 128 && data.ownerUid == userId &&
+        data.candidateName is string && data.candidateName.size() >= 1 && data.candidateName.size() <= 120 &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 254)) &&
+        (!('location' in data) || (data.location is string && data.location.size() <= 160)) &&
+        data.headline is string && data.headline.size() <= 240 &&
+        data.summary is string && data.summary.size() <= 4000 &&
+        (!('skills' in data) || (data.skills is list && data.skills.size() <= 200)) &&
+        (!('experiences' in data) || (data.experiences is list && data.experiences.size() <= 100)) &&
+        (!('projects' in data) || (data.projects is list && data.projects.size() <= 100)) &&
+        (!('education' in data) || (data.education is list && data.education.size() <= 50)) &&
+        (!('resumeVersions' in data) || (data.resumeVersions is list && data.resumeVersions.size() <= 100)) &&
+        (!('settings' in data) || data.settings is map) &&
+        data.isSampleData is bool && data.isSampleData == false &&
+        data.version is int && data.version >= 1 &&
+        data.lastUpdated is string && data.lastUpdated.size() <= 64;
+    }
+
+    function isValidCareerClaim(data, userId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'category', 'statement', 'evidenceIds', 'verificationStatus', 'confidenceScore', 'updatedAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'fingerprint', 'category', 'statement', 'evidenceIds',
+          'repositoryRef', 'commitRef', 'extractedAt', 'supportingExplanation',
+          'verificationStatus', 'lifecycleState', 'ownershipStatus',
+          'clarificationPrompt', 'clarificationResponse', 'confidenceScore',
+          'userConfirmedAt', 'verifiedBy', 'notes', 'proposedChangeType',
+          'sourceLabel', 'discoveredRelativeTime', 'reviewHistory', 'updatedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.ownerUid is string && data.ownerUid.size() <= 128 && data.ownerUid == userId &&
+        (!('fingerprint' in data) || (data.fingerprint is string && data.fingerprint.size() <= 128)) &&
+        data.category is string && data.category.size() <= 32 &&
+        data.category in ['work_experience', 'project', 'skill', 'architecture', 'metric', 'education'] &&
+        data.statement is string && data.statement.size() >= 1 && data.statement.size() <= 1000 &&
+        data.evidenceIds is list && data.evidenceIds.size() >= 1 && data.evidenceIds.size() <= 50 &&
+        data.evidenceIds[0] is string && data.evidenceIds[0].size() <= 128 &&
+        data.verificationStatus is string && data.verificationStatus.size() <= 32 &&
+        data.verificationStatus in ['verified_source', 'user_confirmed', 'discovered', 'pending_review', 'rejected'] &&
+        (!('lifecycleState' in data) || (data.lifecycleState is string && data.lifecycleState.size() <= 32 && data.lifecycleState in ['discovered', 'pending_review', 'approved', 'rejected'])) &&
+        data.confidenceScore is number && data.confidenceScore >= 0 && data.confidenceScore <= 1 &&
+        data.updatedAt is string && data.updatedAt.size() <= 64;
+    }
+
+    function isValidEvidenceSource(data, userId) {
+      return data.keys().hasAll([
+          'id', 'ownerUid', 'type', 'title', 'uri', 'rawContentSnippet', 'provenance', 'securityScan', 'createdAt'
+        ]) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'fingerprint', 'type', 'title', 'uri', 'rawContentSnippet',
+          'provenance', 'securityScan', 'verificationStatus', 'supportingExplanation', 'notes', 'createdAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.ownerUid is string && data.ownerUid.size() <= 128 && data.ownerUid == userId &&
+        (!('fingerprint' in data) || (data.fingerprint is string && data.fingerprint.size() <= 128)) &&
+        data.type is string && data.type.size() <= 32 &&
+        data.type in [
+          'github_repo', 'github_commit', 'github_pull_request', 'github_release',
+          'github_readme', 'linkedin_import', 'user_attestation', 'credential_document'
+        ] &&
+        data.title is string && data.title.size() >= 1 && data.title.size() <= 300 &&
+        data.uri is string && data.uri.size() >= 1 && data.uri.size() <= 1024 &&
+        data.rawContentSnippet is string && data.rawContentSnippet.size() >= 1 && data.rawContentSnippet.size() <= 32768 &&
+        data.provenance is map &&
+        data.securityScan is map &&
+        data.createdAt is string && data.createdAt.size() <= 64;
+    }
+
+    function isValidRepositoryRecord(data, userId) {
+      return data.keys().hasAll(['id', 'ownerUid', 'fullName', 'ownerLogin', 'lastSyncedAt']) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'githubRepoId', 'name', 'fullName', 'ownerLogin', 'description',
+          'htmlUrl', 'primaryLanguage', 'languages', 'topics', 'isFork', 'isArchived',
+          'stargazersCount', 'forksCount', 'sizeKb', 'defaultBranch', 'createdAt',
+          'updatedAt', 'pushedAt', 'latestCommitSha', 'userAuthorCommitCount',
+          'ownershipStatus', 'readmeExcerpt', 'lastSyncedAt'
+        ]) &&
+        isValidId(data.id) &&
+        data.ownerUid is string && data.ownerUid.size() <= 128 && data.ownerUid == userId &&
+        data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 256 &&
+        data.ownerLogin is string && data.ownerLogin.size() >= 1 && data.ownerLogin.size() <= 128 &&
+        data.lastSyncedAt is string && data.lastSyncedAt.size() <= 64;
+    }
+
+    function isValidSyncHistory(data, userId) {
+      return data.keys().hasAll(['id', 'ownerUid', 'provider', 'username', 'startedAt', 'completedAt', 'status']) &&
+        data.keys().hasOnly([
+          'id', 'ownerUid', 'provider', 'username', 'startedAt', 'completedAt', 'status',
+          'repositoriesScanned', 'meaningfulUpdatesFound', 'newEvidenceCount',
+          'newClaimsCount', 'duplicatesSkipped', 'rateLimitRemaining', 'rateLimitResetAt', 'errorMessage'
+        ]) &&
+        isValidId(data.id) &&
+        data.ownerUid is string && data.ownerUid.size() <= 128 && data.ownerUid == userId &&
+        data.provider is string && data.provider.size() <= 32 && data.provider == 'github' &&
+        data.username is string && data.username.size() >= 1 && data.username.size() <= 128 &&
+        data.startedAt is string && data.startedAt.size() <= 64 &&
+        data.completedAt is string && data.completedAt.size() <= 64 &&
+        data.status is string && data.status.size() <= 32 &&
+        data.status in ['success', 'partial', 'failed', 'rate_limited'];
+    }
+
+    function isValidAuditLog(data, userId) {
+      return data.keys().hasAll(['id', 'ownerUid', 'timestamp', 'actor', 'action', 'targetId', 'details']) &&
+        data.keys().hasOnly(['id', 'ownerUid', 'timestamp', 'actor', 'action', 'targetId', 'details']) &&
+        isValidId(data.id) &&
+        data.ownerUid is string && data.ownerUid.size() <= 128 && data.ownerUid == userId &&
+        data.timestamp is string && data.timestamp.size() <= 64 &&
+        data.actor is string && data.actor.size() <= 32 && data.actor in ['system', 'user', 'github_sync'] &&
+        data.action is string && data.action.size() <= 64 &&
+        data.targetId is string && data.targetId.size() <= 128 &&
+        data.details is string && data.details.size() <= 2000;
+    }
+
+    // Root Career Profile Document
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId) && (resource == null || existing().ownerUid == request.auth.uid);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidCareerProfile(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidCareerProfile(incoming(), userId) &&
+        incoming().ownerUid == existing().ownerUid &&
+        incoming().id == existing().id &&
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'candidateName', 'email', 'location', 'headline', 'summary',
+          'skills', 'experiences', 'projects', 'education', 'resumeVersions',
+          'settings', 'version', 'lastUpdated'
+        ]);
+      allow delete: if false;
+
+      // Subcollection: Career Claims
+      match /claims/{claimId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(claimId) && (resource == null || existing().ownerUid == request.auth.uid);
+        allow list: if isOwner(userId) && existing().ownerUid == request.auth.uid;
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(claimId) &&
+          isValidCareerClaim(incoming(), userId) && parentProfileExists(userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(claimId) &&
+          isValidCareerClaim(incoming(), userId) &&
+          incoming().ownerUid == existing().ownerUid &&
+          incoming().id == existing().id &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'statement', 'category', 'evidenceIds', 'supportingExplanation',
+            'verificationStatus', 'lifecycleState', 'ownershipStatus',
+            'clarificationPrompt', 'clarificationResponse', 'userConfirmedAt',
+            'verifiedBy', 'notes', 'reviewHistory', 'updatedAt', 'fingerprint'
+          ]) &&
+          parentProfileExists(userId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(claimId) && parentProfileExists(userId);
+      }
+
+      // Subcollection: Evidence Vault
+      match /evidence/{evidenceId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(evidenceId) && (resource == null || existing().ownerUid == request.auth.uid);
+        allow list: if isOwner(userId) && existing().ownerUid == request.auth.uid;
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(evidenceId) &&
+          isValidEvidenceSource(incoming(), userId) && parentProfileExists(userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(evidenceId) &&
+          isValidEvidenceSource(incoming(), userId) &&
+          incoming().ownerUid == existing().ownerUid &&
+          incoming().id == existing().id &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'title', 'uri', 'rawContentSnippet', 'provenance', 'securityScan',
+            'verificationStatus', 'supportingExplanation', 'notes', 'fingerprint'
+          ]) &&
+          parentProfileExists(userId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(evidenceId) && parentProfileExists(userId);
+      }
+
+      // Subcollection: Synced GitHub Repositories
+      match /repositories/{repoId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(repoId) && (resource == null || existing().ownerUid == request.auth.uid);
+        allow list: if isOwner(userId) && existing().ownerUid == request.auth.uid;
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(repoId) &&
+          isValidRepositoryRecord(incoming(), userId) && parentProfileExists(userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(repoId) &&
+          isValidRepositoryRecord(incoming(), userId) &&
+          incoming().ownerUid == existing().ownerUid &&
+          incoming().id == existing().id &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'description', 'primaryLanguage', 'languages', 'topics', 'isFork', 'isArchived',
+            'stargazersCount', 'forksCount', 'sizeKb', 'defaultBranch', 'updatedAt',
+            'pushedAt', 'latestCommitSha', 'userAuthorCommitCount', 'ownershipStatus',
+            'readmeExcerpt', 'lastSyncedAt'
+          ]) &&
+          parentProfileExists(userId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(repoId) && parentProfileExists(userId);
+      }
+
+      // Subcollection: Sync History (Append/Status Update Only)
+      match /syncHistory/{syncId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(syncId) && (resource == null || existing().ownerUid == request.auth.uid);
+        allow list: if isOwner(userId) && existing().ownerUid == request.auth.uid;
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(syncId) &&
+          isValidSyncHistory(incoming(), userId) && parentProfileExists(userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(syncId) &&
+          isValidSyncHistory(incoming(), userId) &&
+          incoming().ownerUid == existing().ownerUid &&
+          incoming().id == existing().id &&
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'completedAt', 'status', 'repositoriesScanned', 'meaningfulUpdatesFound',
+            'newEvidenceCount', 'newClaimsCount', 'duplicatesSkipped',
+            'rateLimitRemaining', 'rateLimitResetAt', 'errorMessage'
+          ]) &&
+          parentProfileExists(userId);
+        allow delete: if false;
+      }
+
+      // Subcollection: Immutable Security & Verification Audit Logs (Append-Only)
+      match /auditLogs/{logId} {
+        allow get: if isOwner(userId) && isValidId(userId) && isValidId(logId) && (resource == null || existing().ownerUid == request.auth.uid);
+        allow list: if isOwner(userId) && existing().ownerUid == request.auth.uid;
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(logId) &&
+          isValidAuditLog(incoming(), userId) && parentProfileExists(userId);
+        allow update, delete: if false;
+      }
+    }
+  }
+}

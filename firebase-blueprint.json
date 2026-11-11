@@ -1,0 +1,149 @@
+{
+  "entities": {
+    "CareerProfile": {
+      "title": "CareerProfile",
+      "description": "Authenticated owner's verified career profile document.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "candidateName": { "type": "string", "minLength": 1, "maxLength": 120 },
+        "email": { "type": "string", "maxLength": 254 },
+        "location": { "type": "string", "maxLength": 160 },
+        "headline": { "type": "string", "maxLength": 240 },
+        "summary": { "type": "string", "maxLength": 4000 },
+        "isSampleData": { "type": "boolean" },
+        "version": { "type": "number" },
+        "lastUpdated": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "ownerUid", "candidateName", "headline", "summary", "isSampleData", "version", "lastUpdated"]
+    },
+    "CareerClaim": {
+      "title": "CareerClaim",
+      "description": "Evidence-backed career claim scoped to an authenticated owner.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fingerprint": { "type": "string", "maxLength": 128 },
+        "category": {
+          "type": "string",
+          "enum": ["work_experience", "project", "skill", "architecture", "metric", "education"],
+          "maxLength": 32
+        },
+        "statement": { "type": "string", "minLength": 1, "maxLength": 1000 },
+        "verificationStatus": {
+          "type": "string",
+          "enum": ["verified_source", "user_confirmed", "discovered", "pending_review", "rejected"],
+          "maxLength": 32
+        },
+        "lifecycleState": {
+          "type": "string",
+          "enum": ["discovered", "pending_review", "approved", "rejected"],
+          "maxLength": 32
+        },
+        "confidenceScore": { "type": "number" },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "ownerUid", "category", "statement", "verificationStatus", "confidenceScore", "updatedAt"]
+    },
+    "EvidenceSource": {
+      "title": "EvidenceSource",
+      "description": "Sanitized repository or attestation evidence item scoped to an authenticated owner.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fingerprint": { "type": "string", "maxLength": 128 },
+        "type": {
+          "type": "string",
+          "enum": [
+            "github_repo",
+            "github_commit",
+            "github_pull_request",
+            "github_release",
+            "github_readme",
+            "linkedin_import",
+            "user_attestation",
+            "credential_document"
+          ],
+          "maxLength": 32
+        },
+        "title": { "type": "string", "minLength": 1, "maxLength": 300 },
+        "uri": { "type": "string", "minLength": 1, "maxLength": 1024 },
+        "rawContentSnippet": { "type": "string", "minLength": 1, "maxLength": 32768 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "ownerUid", "type", "title", "uri", "rawContentSnippet", "createdAt"]
+    },
+    "GitHubRepositoryRecord": {
+      "title": "GitHubRepositoryRecord",
+      "description": "Synced GitHub repository metadata scoped to an authenticated owner.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "fullName": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "ownerLogin": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "lastSyncedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "ownerUid", "fullName", "ownerLogin", "lastSyncedAt"]
+    },
+    "SyncHistoryRecord": {
+      "title": "SyncHistoryRecord",
+      "description": "Synchronization execution history record scoped to an authenticated owner.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "provider": { "type": "string", "enum": ["github"], "maxLength": 32 },
+        "username": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "startedAt": { "type": "string", "maxLength": 64 },
+        "completedAt": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "enum": ["success", "partial", "failed", "rate_limited"], "maxLength": 32 }
+      },
+      "required": ["id", "ownerUid", "provider", "username", "startedAt", "completedAt", "status"]
+    },
+    "AuditLogEntry": {
+      "title": "AuditLogEntry",
+      "description": "Immutable security and verification audit log entry scoped to an authenticated owner.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "ownerUid": { "type": "string", "maxLength": 128, "pattern": "^[a-zA-Z0-9_\\-]+$" },
+        "timestamp": { "type": "string", "maxLength": 64 },
+        "actor": { "type": "string", "enum": ["system", "user", "github_sync"], "maxLength": 32 },
+        "action": { "type": "string", "maxLength": 64 },
+        "targetId": { "type": "string", "maxLength": 128 },
+        "details": { "type": "string", "maxLength": 2000 }
+      },
+      "required": ["id", "ownerUid", "timestamp", "actor", "action", "targetId", "details"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/CareerProfile" },
+      "description": "Root career profile document owned exclusively by userId."
+    },
+    "/users/{userId}/claims/{claimId}": {
+      "schema": { "$ref": "#/entities/CareerClaim" },
+      "description": "Owner-scoped career claims subcollection."
+    },
+    "/users/{userId}/evidence/{evidenceId}": {
+      "schema": { "$ref": "#/entities/EvidenceSource" },
+      "description": "Owner-scoped evidence vault subcollection."
+    },
+    "/users/{userId}/repositories/{repoId}": {
+      "schema": { "$ref": "#/entities/GitHubRepositoryRecord" },
+      "description": "Owner-scoped synced GitHub repository records."
+    },
+    "/users/{userId}/syncHistory/{syncId}": {
+      "schema": { "$ref": "#/entities/SyncHistoryRecord" },
+      "description": "Owner-scoped GitHub synchronization history."
+    },
+    "/users/{userId}/auditLogs/{logId}": {
+      "schema": { "$ref": "#/entities/AuditLogEntry" },
+      "description": "Owner-scoped security and verification audit logs."
+    }
+  }
+}

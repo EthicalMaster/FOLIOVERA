@@ -296,6 +296,7 @@ export interface AuditLogEntry {
 
 export interface VerifiedCareerProfile {
   id: string;
+  ownerUid?: string;
   candidateName: string;
   email?: string;
   location?: string;
@@ -317,13 +318,31 @@ export interface VerifiedCareerProfile {
   lastUpdated: string;
 }
 
+export interface ProfileExportBundle {
+  schemaVersion: '1.5.0';
+  exportedAt: string;
+  ownerUid: string;
+  isSampleData: boolean;
+  profile: VerifiedCareerProfile;
+}
+
+export interface ProfileImportResult {
+  importedProfileId: string;
+  ownerUid: string;
+  claimsImported: number;
+  evidenceImported: number;
+  repositoriesImported: number;
+  sampleRecordsRejected: number;
+  mode: 'merge' | 'initialize_if_empty';
+}
+
 export interface SystemHealth {
   status: 'healthy' | 'degraded' | 'unhealthy';
   uptimeSeconds: number;
   timestamp: string;
   version: string;
-  storageDriver: 'in-memory' | 'sqlite_local' | 'sqlite_persistent' | 'file' | 'postgres';
-  storageMode?: 'development_persistent' | 'production_persistent' | 'volatile_test';
+  storageDriver: 'in-memory' | 'sqlite_local' | 'sqlite_persistent' | 'firestore' | 'file' | 'postgres';
+  storageMode?: 'development_persistent' | 'production_persistent' | 'volatile_test' | 'cloud_firestore_durable';
   databasePath?: string;
   profileLoaded: boolean;
   evidenceCount: number;
@@ -334,6 +353,7 @@ export interface SystemHealth {
   geminiConfigured: boolean;
   githubApiReady: boolean;
   securityScannerActive: boolean;
+  authConfigured?: boolean;
 }
 
 /**

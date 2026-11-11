@@ -2,8 +2,9 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  * 
- * Living Resume Agent — Storage Factory & In-Memory Adapter (for Isolated Unit Tests)
- * Production and local development default to PersistentSqliteStorageAdapter on disk.
+ * Foliovera — Storage Factory & In-Memory Adapter (Phase 1.5)
+ * Supports Firestore for durable production career storage, SQLite for local development
+ * and isolated testing, and InMemoryStorageAdapter for fast unit tests.
  */
 
 import {
@@ -16,22 +17,57 @@ import {
   type AuditLogEntry,
   type SystemHealth,
   type GitHubRepositoryRecord,
-  type SyncHistoryRecord
+  type SyncHistoryRecord,
+  type ProfileExportBundle,
+  type ProfileImportResult
 } from '../../shared/types/career-profile.ts';
-import type { StorageAdapter } from './storage.interface.ts';
-import { SAMPLE_CAREER_PROFILE } from './sample-data.ts';
+import type { StorageAdapter, OwnerIdentityMeta } from './storage.interface.ts';
+import { SAMPLE_CAREER_PROFILE, createEmptyOwnerProfile } from './sample-data.ts';
 import { SchemaValidator } from './schema-validator.ts';
 import { PersistentSqliteStorageAdapter } from './persistent-storage.ts';
+import { FirestoreStorageAdapter } from './firestore-storage.ts';
 
 export class InMemoryStorageAdapter implements StorageAdapter {
   private profile: VerifiedCareerProfile;
+  private ownerMap: Map<string, InMemoryStorageAdapter>;
+  private owner?: OwnerIdentityMeta;
   private startTime: number;
 
-  constructor(initialProfile: VerifiedCareerProfile = SAMPLE_CAREER_PROFILE) {
+  constructor(
+    initialProfile: VerifiedCareerProfile = SAMPLE_CAREER_PROFILE,
+    owner?: OwnerIdentityMeta,
+    sharedOwnerMap?: Map<string, InMemoryStorageAdapter>
+  ) {
     this.profile = JSON.parse(JSON.stringify(initialProfile));
     if (!this.profile.repositories) this.profile.repositories = [];
     if (!this.profile.syncHistory) this.profile.syncHistory = [];
+    this.owner = owner;
+    this.ownerMap = sharedOwnerMap || new Map();
     this.startTime = Date.now();
+  }
+
+  public forOwner(owner: OwnerIdentityMeta): StorageAdapter {
+    if (!owner || !owner.uid || !owner.uid.trim()) {
+      throw new Error('Valid owner UID is required');
+    }
+    const uid = owner.uid.trim();
+    let existing = this.ownerMap.get(uid);
+    if (!existing) {
+      const emptyProfile = createEmptyOwnerProfile(uid, owner.email, owner.displayName);
+      existing = new InMemoryStorageAdapter(emptyProfile, owner, this.ownerMap);
+      this.ownerMap.set(uid, existing);
+    }
+    return existing;
+  }
+
+  public async initializeEmptyProfile(ownerOverride?: OwnerIdentityMeta): Promise<VerifiedCareerProfile> {
+    const targetOwner = ownerOverride || this.owner || { uid: 'owner-default' };
+    this.profile = createEmptyOwnerProfile(
+      targetOwner.uid,
+      targetOwner.email,
+      targetOwner.displayName
+    );
+    return JSON.parse(JSON.stringify(this.profile));
   }
 
   public async getProfile(): Promise<VerifiedCareerProfile | null> {
@@ -39,8 +75,15 @@ export class InMemoryStorageAdapter implements StorageAdapter {
   }
 
   public async saveProfile(updated: VerifiedCareerProfile): Promise<void> {
+    if (this.owner && (updated.isSampleData || updated.id === SAMPLE_CAREER_PROFILE.id)) {
+      throw new Error('Sample demonstration profiles cannot be saved into an authenticated owner profile.');
+    }
     SchemaValidator.validateProfile(updated);
     this.profile = JSON.parse(JSON.stringify(updated));
+    if (this.owner) {
+      this.profile.ownerUid = this.owner.uid;
+      this.profile.isSampleData = false;
+    }
     this.profile.lastUpdated = new Date().toISOString();
     this.profile.version += 1;
   }
@@ -284,6 +327,67 @@ export class InMemoryStorageAdapter implements StorageAdapter {
     return newEntry;
   }
 
+  public async exportProfileBundle(ownerUid?: string): Promise<ProfileExportBundle> {
+    const target = ownerUid ? this.forOwner({ uid: ownerUid }) : this;
+    const profile = await target.getProfile();
+    if (!profile) throw new Error('Profile not found');
+    return {
+      schemaVersion: '1.5.0',
+      exportedAt: new Date().toISOString(),
+      ownerUid: ownerUid || this.owner?.uid || 'default',
+      isSampleData: Boolean(profile.isSampleData),
+      profile
+    };
+  }
+
+  public async importProfileBundle(
+    ownerUid: string,
+    incomingProfile: VerifiedCareerProfile,
+    options: { mode?: 'merge' | 'initialize_if_empty' } = {}
+  ): Promise<ProfileImportResult> {
+    const mode = options.mode || 'merge';
+    if (
+      incomingProfile.isSampleData === true ||
+      incomingProfile.id === SAMPLE_CAREER_PROFILE.id
+    ) {
+      throw new Error('Sample demonstration profile cannot be imported into authenticated owner storage.');
+    }
+
+    const sampleEvidenceIds = new Set(SAMPLE_CAREER_PROFILE.evidenceVault.map(e => e.id));
+    const sampleClaimIds = new Set(SAMPLE_CAREER_PROFILE.claims.map(c => c.id));
+    const cleanEvidence = (incomingProfile.evidenceVault ?? []).filter(e => !sampleEvidenceIds.has(e.id));
+    const cleanClaims = (incomingProfile.claims ?? []).filter(c => !sampleClaimIds.has(c.id));
+    const sampleRecordsRejected =
+      (incomingProfile.evidenceVault?.length ?? 0) -
+      cleanEvidence.length +
+      ((incomingProfile.claims?.length ?? 0) - cleanClaims.length);
+
+    const sanitized: VerifiedCareerProfile = {
+      ...incomingProfile,
+      id: `profile-${ownerUid}`,
+      ownerUid,
+      isSampleData: false,
+      evidenceVault: cleanEvidence,
+      claims: cleanClaims,
+      lastUpdated: new Date().toISOString(),
+      version: (incomingProfile.version || 1) + 1
+    };
+
+    SchemaValidator.validateProfile(sanitized);
+    const scoped = this.forOwner({ uid: ownerUid }) as InMemoryStorageAdapter;
+    scoped.profile = JSON.parse(JSON.stringify(sanitized));
+
+    return {
+      importedProfileId: sanitized.id,
+      ownerUid,
+      claimsImported: cleanClaims.length,
+      evidenceImported: cleanEvidence.length,
+      repositoriesImported: (sanitized.repositories ?? []).length,
+      sampleRecordsRejected,
+      mode
+    };
+  }
+
   public async getSystemHealth(): Promise<SystemHealth> {
     const verifiedClaims = this.profile.claims.filter(c => isClaimApproved(c)).length;
 
@@ -291,7 +395,7 @@ export class InMemoryStorageAdapter implements StorageAdapter {
       status: 'healthy',
       uptimeSeconds: Math.floor((Date.now() - this.startTime) / 1000),
       timestamp: new Date().toISOString(),
-      version: '1.0.0-phase1',
+      version: '1.5.0-phase1.5',
       storageDriver: 'in-memory',
       storageMode: 'volatile_test',
       profileLoaded: true,
@@ -302,19 +406,29 @@ export class InMemoryStorageAdapter implements StorageAdapter {
       syncRunsCount: (this.profile.syncHistory ?? []).length,
       geminiConfigured: Boolean(process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'MY_GEMINI_API_KEY'),
       githubApiReady: true,
-      securityScannerActive: true
+      securityScannerActive: true,
+      authConfigured: true
     };
   }
 }
 
 /**
  * Initializes the application storage engine.
- * Uses PersistentSqliteStorageAdapter by default (never silently falls back to volatile storage).
+ * - STORAGE_DRIVER='firestore': Durable Cloud Firestore storage
+ * - STORAGE_DRIVER='sqlite' (default for local dev/test): Persistent SQLite storage
+ * - STORAGE_DRIVER='in-memory': Isolated in-memory test store
  */
-function createApplicationStorage(): StorageAdapter {
-  const requestedDriver = process.env.STORAGE_DRIVER;
+export function createApplicationStorage(driverOverride?: string): StorageAdapter {
+  const requestedDriver =
+    driverOverride ||
+    process.env.STORAGE_DRIVER ||
+    (process.env.NODE_ENV === 'production' && process.env.K_SERVICE ? 'firestore' : 'sqlite');
+
   if (requestedDriver === 'in-memory') {
     return new InMemoryStorageAdapter();
+  }
+  if (requestedDriver === 'firestore') {
+    return new FirestoreStorageAdapter();
   }
   return new PersistentSqliteStorageAdapter();
 }

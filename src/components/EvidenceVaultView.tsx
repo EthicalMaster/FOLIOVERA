@@ -27,6 +27,7 @@ import {
   X
 } from 'lucide-react';
 import { EvidenceSource, EvidenceSourceType } from '../../shared/types/career-profile';
+import { apiFetch } from '../lib/api-client';
 
 interface EvidenceVaultViewProps {
   evidenceList: EvidenceSource[];
@@ -96,7 +97,7 @@ export const EvidenceVaultView: React.FC<EvidenceVaultViewProps> = ({
     if (!newTitle.trim() || !newSnippet.trim()) return;
     setSubmitting(true);
     try {
-      const res = await fetch('/api/evidence', {
+      const res = await apiFetch('/api/evidence', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

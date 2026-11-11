@@ -33,6 +33,7 @@ import {
   EvidenceSource,
   resolveLifecycleState
 } from '../../shared/types/career-profile';
+import { apiFetch } from '../lib/api-client';
 
 interface ClaimsMatrixViewProps {
   profile: VerifiedCareerProfile | null;
@@ -80,7 +81,7 @@ export const ClaimsMatrixView: React.FC<ClaimsMatrixViewProps> = ({
     setIsUpdating(true);
     setUpdateError(null);
     try {
-      const res = await fetch(`/api/claims/${claimId}/verify`, {
+      const res = await apiFetch(`/api/claims/${claimId}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -114,7 +115,7 @@ export const ClaimsMatrixView: React.FC<ClaimsMatrixViewProps> = ({
     setIsUpdating(true);
     setUpdateError(null);
     try {
-      const res = await fetch(`/api/claims/${selectedClaim.id}`, {
+      const res = await apiFetch(`/api/claims/${selectedClaim.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -140,7 +141,7 @@ export const ClaimsMatrixView: React.FC<ClaimsMatrixViewProps> = ({
     setIsUpdating(true);
     setUpdateError(null);
     try {
-      const res = await fetch(`/api/claims/${claimId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/claims/${claimId}`, { method: 'DELETE' });
       const data = await res.json();
       if (!res.ok || !data.success) {
         throw new Error(data.error?.message || 'Failed to delete claim');

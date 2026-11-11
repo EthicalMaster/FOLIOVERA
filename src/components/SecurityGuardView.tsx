@@ -16,6 +16,7 @@ import {
   Lock,
   Eye
 } from 'lucide-react';
+import { apiFetch } from '../lib/api-client';
 
 const SAMPLE_ATTACK_PAYLOADS = [
   {
@@ -42,7 +43,7 @@ export const SecurityGuardView: React.FC = () => {
     setIsScanning(true);
     setScanError(null);
     try {
-      const res = await fetch('/api/security/scan', {
+      const res = await apiFetch('/api/security/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: contentToScan })

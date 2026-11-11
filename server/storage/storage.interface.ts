@@ -2,9 +2,9 @@
  * @license
  * SPDX-License-Identifier: Apache-2.0
  * 
- * Living Resume Agent — Replaceable Database Storage Interface
- * Supports full persistence, deduplication, claim lifecycle management,
- * repository sync tracking, and historical auditability.
+ * Foliovera — Replaceable Database Storage Interface (Phase 1.5)
+ * Supports owner-scoped persistence, deduplication, claim lifecycle management,
+ * repository sync tracking, historical auditability, and safe profile migration.
  */
 
 import type {
@@ -15,12 +15,44 @@ import type {
   AuditLogEntry,
   SystemHealth,
   GitHubRepositoryRecord,
-  SyncHistoryRecord
+  SyncHistoryRecord,
+  ProfileExportBundle,
+  ProfileImportResult
 } from '../../shared/types/career-profile.ts';
 
+export interface OwnerIdentityMeta {
+  uid: string;
+  email?: string;
+  displayName?: string;
+  idToken?: string;
+}
+
 export interface StorageAdapter {
+  /**
+   * Returns an owner-scoped view of the storage adapter so all operations
+   * are strictly isolated to the authenticated owner UID.
+   */
+  forOwner?(owner: OwnerIdentityMeta): StorageAdapter;
+
   getProfile(): Promise<VerifiedCareerProfile | null>;
   saveProfile(profile: VerifiedCareerProfile): Promise<void>;
+
+  /**
+   * Initializes a genuinely empty personal profile for an authenticated owner
+   * without seeding demonstration data.
+   */
+  initializeEmptyProfile?(owner: OwnerIdentityMeta): Promise<VerifiedCareerProfile>;
+
+  /**
+   * Safe export and validated import for migrating career data without
+   * sample data contamination or silent overwrite.
+   */
+  exportProfileBundle?(ownerUid: string): Promise<ProfileExportBundle>;
+  importProfileBundle?(
+    ownerUid: string,
+    incomingProfile: VerifiedCareerProfile,
+    options?: { mode?: 'merge' | 'initialize_if_empty' }
+  ): Promise<ProfileImportResult>;
 
   // Claims management
   getClaim(claimId: string): Promise<CareerClaim | null>;

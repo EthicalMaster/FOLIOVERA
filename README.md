@@ -1,54 +1,26 @@
-# Foliovera (`foliovera`)
+# Foliovera (`EthicalMaster/FOLIOVERA`)
 
 > **Your career, always current.**  
 > An AI-powered career intelligence platform that transforms verified achievements into living professional profiles and tailored resumes.
 
-Foliovera (formerly *Living Resume Agent*) is designed to be **free-tier first**, independent of paid ChatGPT subscriptions, and engineered with strict source traceability, persistent relational storage, and prompt-injection security boundaries.
+Foliovera (formerly *Living Resume Agent*) is engineered with **Firebase Authentication (Google Sign-In)**, **Single-Owner MVP Authorization**, **Cloud Firestore durable storage**, strict source provenance, and prompt-injection security boundaries.
 
 ---
 
-## Core Engineering Principles
+## Core Engineering & Security Principles
 
-1. **Evidence Traceability (Rule 4)**: Every career claim is strictly anchored to verifiable repository commits, official PRs, README artifacts, or explicit candidate confirmation.
-2. **Zero Fabrication (Rule 5)**: The platform never invents skills, experiences, job titles, metrics, or achievements.
-3. **Untrusted Data Isolation (Rule 6)**: Public repository descriptions, READMEs, commit messages, and issues are treated as untrusted data and strictly quarantined from agent instructions via `UntrustedDataGuard`.
-4. **Honest Authorship & Ownership Clarification (Phase 1 Step 5)**: Repository existence is never conflated with personal authorship. Forked repositories or repos without author-matched commits default to `uncertain_ownership` and prompt the candidate for clarification before entering the approved profile.
-5. **Persistent Relational Storage (Phase 1 Step 2)**: Powered by Node.js 22 native SQLite (`node:sqlite` `DatabaseSync` in WAL mode) at `./data/living-resume.sqlite` with deterministic SHA-256 fingerprint deduplication and zero silent fallback to volatile memory.
-
----
-
-## Architecture Overview
-
-```
-                      +---------------------------------------+
-                      |       Client (React + TypeScript)     |
-                      |  - Foliovera Editorial Workspace      |
-                      |  - Live GitHub Intelligence Sync      |
-                      |  - Review Queue & Ownership Clarifier |
-                      |  - Traceability Matrix & Resume Studio|
-                      +-------------------+-------------------+
-                                          |
-                                          | HTTP / JSON API
-                                          v
-                      +---------------------------------------+
-                      |       Server (Node.js + Express)      |
-                      |  - POST /api/github/sync              |
-                      |  - GET/PUT /api/profile               |
-                      |  - GET/PATCH/DELETE /api/claims       |
-                      |  - POST /api/claims/:id/verify        |
-                      |  - POST /api/resume/generate          |
-                      +---------+-------------------+---------+
-                                |                   |
-                 +--------------+                   +-------------+
-                 |                                                |
-                 v                                                v
-  +------------------------------+                 +------------------------------+
-  |  GitHubSyncOrchestrator      |                 | PersistentSqliteStorage      |
-  | - Official GitHub REST API   |                 | - Native node:sqlite (WAL)   |
-  | - UntrustedDataGuard Scan    |                 | - SHA-256 Deduplication      |
-  | - Deterministic Extractor    |                 | - Schema Validation          |
-  +------------------------------+                 +------------------------------+
-```
+1. **Cryptographic Identity & Owner-Only Authorization (Phase 1.5)**:
+   - All private profile reads, claim verifications, GitHub syncs, and Gemini resume generations require a valid Firebase ID token verified server-side (`firebase-admin/auth`).
+   - Single-owner MVP access policy (`FOLIOVERA_OWNER_EMAIL` / `FOLIOVERA_OWNER_UID`) rejects unauthorized accounts (`403 FORBIDDEN_NOT_OWNER`) and fails closed if misconfigured.
+2. **Durable Cloud Persistence (`FirestoreStorageAdapter`)**:
+   - Production career profiles, verified claims, evidence vaults, sync history, and generated resume versions are stored durably in **Cloud Firestore** (`/users/{ownerUid}` and subcollections), surviving Cloud Run deployments and container restarts.
+   - Local development and offline test suites remain supported via `PersistentSqliteStorageAdapter` (`node:sqlite` WAL) and `InMemoryStorageAdapter`.
+3. **Strict Sample Data Isolation**:
+   - Reference sample data (*Alex Morgan*) is isolated to the read-only Demo Sandbox (`/api/demo/profile`) and blocked from entering real owner profiles or generated resumes.
+4. **Evidence Traceability & Zero Fabrication (Rules 4 & 5)**:
+   - Every career claim must reference at least one verifiable `EvidenceSource` ID. Only approved claims (`isClaimApproved`) are eligible for resume generation.
+5. **Untrusted Data Quarantine (Rule 6)**:
+   - Repository descriptions, READMEs, and commits are scanned by `UntrustedDataGuard` before claim extraction or AI synthesis.
 
 ---
 
@@ -64,33 +36,34 @@ npm run dev
 ```bash
 # Validates TypeScript types across frontend and backend
 npm run typecheck
-# or
-npm run lint
+# Lint Firestore security rules
+npx eslint firestore.rules
 ```
 
 ### Automated Testing
 ```bash
-# Executes unit, persistence, GitHub sync, and security tests using Node test runner
+# Executes all unit, security, authentication, Firestore persistence, and GitHub sync tests
 npm test
 ```
 
-### Production Build
+### Production Build & Startup
 ```bash
 # Builds optimized client bundle in /dist
 npm run build
+# Starts production Node 22 server
+npm start
 ```
 
 ---
 
-## Storage & Recovery Documentation
+## Environment & Firebase Configuration
 
-- **Local Development & Default Persistent Database**: `./data/living-resume.sqlite` (override via `SQLITE_DB_PATH`).
-- **Cloud Run Deployment & Storage Durability**:
-  - Production startup executes `node server.ts` using Node.js 22 native ESM + TypeScript strip-types with explicit `.ts` relative specifiers and `import type` declarations.
-  - On Google Cloud Run, the container root filesystem (`./data/living-resume.sqlite`) persists across requests within an active container instance, but is **ephemeral across container instance replacements or scale-to-zero events**.
-  - For durable multi-instance production persistence on Cloud Run, either mount a persistent volume (e.g., Cloud Storage FUSE / Filestore) and point `SQLITE_DB_PATH` to the mounted directory, or implement a managed Cloud SQL / PostgreSQL `StorageAdapter`. Foliovera never silently falls back to volatile `:memory:` storage if the configured path is unwritable.
-- **Schema Migrations**: Tracked in the `schema_migrations` table (`version = 1`).
-- **Backup & Recovery**:
-  - **UI Export**: Navigate to **Settings → Export / Backup Career Vault** to download `foliovera-verified-backup-YYYY-MM-DD.json`.
-  - **Database Snapshot**: Copy `./data/living-resume.sqlite` while the server is stopped or use SQLite `.backup`.
-  - **Clean Re-initialization**: Delete `./data/living-resume.sqlite` and restart the server to re-run schema creation and seed initialization.
+See [`.env.example`](./.env.example) for all supported environment variables:
+
+| Variable | Description |
+| :--- | :--- |
+| `FOLIOVERA_OWNER_EMAIL` | Authorized owner email address for single-user MVP access (default: `saifeetaher5@gmail.com`) |
+| `FOLIOVERA_OWNER_UID` | Optional authorized Firebase UID for single-user MVP access |
+| `STORAGE_DRIVER` | `firestore` (production default), `sqlite` (local file DB), or `in-memory` (unit tests) |
+| `GEMINI_API_KEY` | Server-side Gemini API key for AI-assisted resume tailoring |
+| `GITHUB_TOKEN` | Optional server-side fine-grained GitHub PAT for higher public API rate limits |

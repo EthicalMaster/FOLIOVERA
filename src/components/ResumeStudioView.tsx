@@ -27,6 +27,7 @@ import {
   ResumeVersion,
   ResumeStyle
 } from '../../shared/types/career-profile';
+import { apiFetch } from '../lib/api-client';
 
 interface ResumeStudioViewProps {
   profile: VerifiedCareerProfile;
@@ -85,7 +86,7 @@ export const ResumeStudioView: React.FC<ResumeStudioViewProps> = ({
     }, 750);
 
     try {
-      const res = await fetch('/api/resume/generate', {
+      const res = await apiFetch('/api/resume/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -7,7 +7,7 @@
  * Connected Accounts, Automation, Resume Defaults, Privacy & Data, and Export / Backup.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { motion } from 'motion/react';
 import {
   Link2,
@@ -15,17 +15,19 @@ import {
   FileText,
   Shield,
   Download,
+  Upload,
   CheckCircle2,
   Sun,
   Moon,
-  ChevronRight,
-  RefreshCw
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 import {
   VerifiedCareerProfile,
   UserSettings,
   ResumeStyle
 } from '../../shared/types/career-profile';
+import { apiFetch } from '../lib/api-client';
 
 interface SettingsViewProps {
   profile: VerifiedCareerProfile;
@@ -54,12 +56,15 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const [settings, setSettings] = useState<UserSettings>(defaultSettings);
   const [saving, setSaving] = useState(false);
   const [savedNotice, setSavedNotice] = useState<string | null>(null);
+  const [migrationError, setMigrationError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const persistSettings = async (nextSettings: UserSettings, note: string) => {
     setSettings(nextSettings);
     setSaving(true);
+    setMigrationError(null);
     try {
-      const res = await fetch('/api/profile', {
+      const res = await apiFetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -70,7 +75,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
       const json = await res.json();
       if (res.ok && json.success && json.data) {
         onProfileUpdated(json.data);
-        setSavedNotice('Preferences saved.');
+        setSavedNotice('Preferences saved to durable storage.');
         setTimeout(() => setSavedNotice(null), 2500);
       }
     } finally {
@@ -90,17 +95,64 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     );
   };
 
-  const handleExportProfileBackup = () => {
-    const payload = JSON.stringify(profile, null, 2);
-    const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `foliovera-verified-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    setSavedNotice('Exported Foliovera verified career profile JSON backup.');
-    setTimeout(() => setSavedNotice(null), 3000);
+  const handleExportProfileBackup = async () => {
+    setMigrationError(null);
+    try {
+      const res = await apiFetch('/api/profile/export');
+      const json = await res.json();
+      const exportPayload = res.ok && json.success && json.data ? json.data : {
+        schemaVersion: '1.5.0',
+        exportedAt: new Date().toISOString(),
+        sourceDriver: 'firestore',
+        profile
+      };
+      const payload = JSON.stringify(exportPayload, null, 2);
+      const blob = new Blob([payload], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `foliovera-verified-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setSavedNotice('Exported Foliovera verified career profile JSON bundle.');
+      setTimeout(() => setSavedNotice(null), 3000);
+    } catch (err) {
+      setMigrationError(err instanceof Error ? err.message : 'Failed to export profile bundle');
+    }
+  };
+
+  const handleImportFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setSaving(true);
+    setMigrationError(null);
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      const res = await apiFetch('/api/profile/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed)
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) {
+        throw new Error(json.error?.message || 'Profile import failed validation');
+      }
+      const refreshed = await apiFetch('/api/profile');
+      const refreshedJson = await refreshed.json();
+      if (refreshed.ok && refreshedJson.success && refreshedJson.data) {
+        onProfileUpdated(refreshedJson.data);
+      }
+      setSavedNotice(
+        `Migrated ${json.data.claimsImported} claims, ${json.data.evidenceImported} evidence sources, and ${json.data.resumeVersionsImported} resume versions.`
+      );
+      setTimeout(() => setSavedNotice(null), 4000);
+    } catch (err) {
+      setMigrationError(err instanceof Error ? err.message : 'Invalid JSON backup file');
+    } finally {
+      setSaving(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
   };
 
   return (
@@ -364,29 +416,57 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
         </div>
       </section>
 
-      {/* 5. Export / Backup (Storyboard Row #5) */}
-      <section className="bg-[#FDFCFA] dark:bg-[#1A1F1D] border border-[#E2DFD7] dark:border-[#262E2B] rounded-2xl p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#F6F5F1] dark:bg-[#242E2A] flex items-center justify-center text-[#242824] dark:text-[#DDE6DC]">
-            <Download className="w-4 h-4" />
+      {/* 5. Export / Import Migration & Backup (Storyboard Row #5) */}
+      <section className="bg-[#FDFCFA] dark:bg-[#1A1F1D] border border-[#E2DFD7] dark:border-[#262E2B] rounded-2xl p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#F6F5F1] dark:bg-[#242E2A] flex items-center justify-center text-[#242824] dark:text-[#DDE6DC]">
+              <Download className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm sm:text-base font-semibold text-[#242824] dark:text-[#F1F3F1]">
+                Export, Import & Migrate Career Vault
+              </h3>
+              <p className="text-xs text-[#545B54] dark:text-[#B4BDB7]">
+                Export a portable JSON bundle or import existing SQLite/JSON backups into Cloud Firestore while preserving claim verification states.
+              </p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-sm sm:text-base font-semibold text-[#242824] dark:text-[#F1F3F1]">
-              Export / Backup Career Vault
-            </h3>
-            <p className="text-xs text-[#545B54] dark:text-[#B4BDB7]">
-              Download a portable JSON snapshot of your verified profile, claims, and cryptographic evidence links.
-            </p>
+
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="application/json,.json"
+              onChange={handleImportFileSelected}
+              className="hidden"
+            />
+            <button
+              type="button"
+              disabled={saving}
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium bg-[#E9E5DD] dark:bg-[#242E2A] text-[#242824] dark:text-[#F1F3F1] hover:bg-[#DDD8CE] transition-colors cursor-pointer"
+            >
+              <Upload className="w-4 h-4" />
+              <span>Import / Migrate (.JSON)</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleExportProfileBackup}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium text-white bg-[#365C4C] hover:bg-[#2B4B3E] transition-colors cursor-pointer"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export Backup (.JSON)</span>
+            </button>
           </div>
         </div>
 
-        <button
-          onClick={handleExportProfileBackup}
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-medium text-white bg-[#365C4C] hover:bg-[#2B4B3E] transition-colors shrink-0 self-start sm:self-center"
-        >
-          <Download className="w-4 h-4" />
-          <span>Export Backup (.JSON)</span>
-        </button>
+        {migrationError && (
+          <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-red-800 text-xs flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-red-700 shrink-0" />
+            <span>{migrationError}</span>
+          </div>
+        )}
       </section>
     </div>
   );

@@ -33,6 +33,7 @@ import {
 } from '../../shared/types/career-profile';
 import { EditorialAvatar } from './common/EditorialVisuals';
 import { ActiveTab } from './Layout';
+import { apiFetch } from '../lib/api-client';
 
 interface CareerProfileViewProps {
   profile: VerifiedCareerProfile;
@@ -83,7 +84,7 @@ export const CareerProfileView: React.FC<CareerProfileViewProps> = ({
     setSaving(true);
     setFeedbackMsg(null);
     try {
-      const res = await fetch('/api/profile', {
+      const res = await apiFetch('/api/profile', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(patch)

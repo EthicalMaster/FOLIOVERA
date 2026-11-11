@@ -31,6 +31,7 @@ import {
 } from '../../shared/types/career-profile';
 import { ActiveTab } from './Layout';
 import { MistyForestBannerSVG, OrganicWavePatternSVG } from './common/EditorialVisuals';
+import { apiFetch } from '../lib/api-client';
 
 interface DashboardViewProps {
   profile: VerifiedCareerProfile | null;
@@ -71,7 +72,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setIsSyncing(true);
     setSyncFeedback(null);
     try {
-      const res = await fetch('/api/github/sync', {
+      const res = await apiFetch('/api/github/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: targetUser, maxRepos: 6 })
